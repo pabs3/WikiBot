@@ -158,6 +158,7 @@
     const statusPrefix = "job-status-";
 
     const endStatus = [
+        'SUCCESS', // FIXME: remove when server side changes deployed
         'COMPLETED',
         'FAILED',
         'ABORTED',
@@ -317,6 +318,16 @@
             const id = data.jobId;
             const logLine = data.logLine;
 
+            // FIXME: remove this when the server changes are deployed?
+            const job = jobs[id];
+            if (!('fake' in data) && job && job.parentElement === queued_div) {
+                const msgData = { jobId: id, event: 'RUNNING' };
+                const msgEvent = new MessageEvent('message', {
+                    data: JSON.stringify(msgData),
+                });
+                jobSocket.dispatchEvent(msgEvent);
+            }
+
             // Add log message to the log box of the job.
             const logBox = logBoxes[id];
             if(logBox) {
@@ -341,6 +352,18 @@
             const id = data.jobId;
             const status = data.event;
             const info = data.info;
+
+            // Send a fake log message about the new status
+            const msgDate = (new Date).toISOString().replace('T', ' ').slice(0, 19)
+            const msgData = {
+                jobId: id,
+                logLine: `\n${msgDate} | Job ${id} is now ${status.toLowerCase()}\n`,
+                fake: true,
+            };
+            const msgEvent = new MessageEvent('message', {
+                data: JSON.stringify(msgData),
+            });
+            logSocket.dispatchEvent(msgEvent);
 
             if (!allStatus.includes(status)) {
                 console.error('Unknown event type: ' + status);
